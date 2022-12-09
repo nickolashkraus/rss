@@ -22,6 +22,9 @@
 //     the first struct field that has tag ",chardata". The struct field may
 //     have type []byte or string. If there is no such field, the character
 //     data is discarded.
+//   - A field with a tag including the "omitempty" option is omitted if the
+//     field value is empty. The empty values are false, 0, any nil pointer or
+//     interface value, and any array, slice, map, or string of length zero.
 package rss
 
 import (
@@ -80,17 +83,15 @@ func Validate(r RSSElement) (bool, []error) {
 		// If not, ok will be false and t will be the zero value of type T, and no
 		// panic occurs.
 		if t, ok := v.Field(i).Interface().(RSSElement); ok {
-			// Indirect returns the value that v points to.
-			// If v is a nil pointer, Indirect returns a zero Value.
-			// If v is not a pointer, Indirect returns v.
-			v := reflect.Indirect(reflect.ValueOf(t))
+			// ValueOf returns a new Value initialized to the concrete value
+			// stored in the interface i. ValueOf(nil) returns the zero Value.
+			v := reflect.ValueOf(t)
 			// Kind returns v's Kind.
 			// If v is the zero Value (IsValid returns false), Kind returns Invalid.
-			if v.Kind() == reflect.Ptr {
+			if v.Kind() == reflect.Pointer {
 				// Check whether v is nil before calling IsValid.
 				if v.IsNil() {
-					isValid = false
-					errs = append(errs, fmt.Errorf("Element cannot be empty"))
+					continue
 				}
 			}
 			if ok, e := t.IsValid(); !ok {
@@ -306,47 +307,59 @@ func (r WebMaster) IsValid() bool { return true }
 // See:
 //   - https://validator.w3.org/feed/docs/rss2.html#optionalChannelElements
 //   - https://validator.w3.org/feed/docs/rss2.html#ltpubdategtSubelementOfLtitemgt
-type PubDate string
+type PubDate struct {
+	XMLName  xml.Name `xml:"pubDate"`   // required
+	CharData []byte   `xml:",chardata"` // required
+}
 
-// Whether <pubDate> is valid.
+// Returns whether <pubDate> is valid and a slice containing any errors.
 //
 // <pubDate> must conform to the Date and Time Specification of RFC822, with
 // the exception that the year may be expressed with two characters or four
 // characters (four preferred).
 //
 // See: http://asg.web.cmu.edu/rfc/rfc822.html
-func (r PubDate) IsValid() (bool, error) {
-	msg := fmt.Sprintf("Element <pubDate> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
-		return false, fmt.Errorf("%s: %w", msg, err)
+func (r PubDate) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	if ok, err := IsValidDate(string(r)); !ok {
-		return false, fmt.Errorf("%s: %w", msg, err)
+	if ok, err := IsValidDate(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	return true, nil
+	return isValid, errs
 }
 
 // <lastBuildDate> is an optional sub-element of <channel>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#optionalChannelElements
-type LastBuildDate string
+type LastBuildDate struct {
+	XMLName  xml.Name `xml:"lastBuildDate"` // required
+	CharData []byte   `xml:",chardata"`     // required
+}
 
-// Whether <lastBuildDate> is valid.
+// Returns whether <lastBuildDate> is valid and a slice containing any errors.
 //
 // <lastBuildDate> must conform to the Date and Time Specification of RFC822,
 // with the exception that the year may be expressed with two characters or
 // four characters (four preferred).
 //
 // See: http://asg.web.cmu.edu/rfc/rfc822.html
-func (r LastBuildDate) IsValid() (bool, error) {
-	msg := fmt.Sprintf("Element <lastBuildDate> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
-		return false, fmt.Errorf("%s: %w", msg, err)
+func (r LastBuildDate) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	if ok, err := IsValidDate(string(r)); !ok {
-		return false, fmt.Errorf("%s: %w", msg, err)
+	if ok, err := IsValidDate(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	return true, nil
+	return isValid, errs
 }
 
 // <category> is an optional sub-element of <channel> and <item>.
@@ -358,31 +371,46 @@ func (r LastBuildDate) IsValid() (bool, error) {
 //   - https://validator.w3.org/feed/docs/rss2.html#optionalChannelElements
 //   - https://validator.w3.org/feed/docs/rss2.html#ltcategorygtSubelementOfLtitemgt
 type Category struct {
-	XMLName        xml.Name       `xml:"category"`    // required
-	CharData       []byte         `xml:",chardata"`   // required
-	CategoryDomain CategoryDomain `xml:"domain,attr"` // optional
+	XMLName        xml.Name       `xml:"category"`              // required
+	CharData       []byte         `xml:",chardata"`             // required
+	CategoryDomain CategoryDomain `xml:"domain,attr,omitempty"` // optional
 }
 
-// Whether <category> is valid.
-func (r Category) IsValid() bool { return true }
+// Returns whether <category> is valid and a slice containing any errors.
+//
+// TODO: Check that the value of the element is a forward-slash-separated
+// string.
+func (r Category) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <category> value '%s' is invalid", r)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	if ok, e := Validate(r); !ok {
+		isValid = false
+		errs = append(errs, e...)
+	}
+	return isValid, errs
+}
 
-// domain (<category>) is an optional attribute of <category>. It differs from
-// the required domain attribute of <cloud>.
+// 'domain' is an optional attribute of <category>.
+//
+// It differs from the required 'domain' attribute of <cloud>.
 //
 // See:
 //   - https://validator.w3.org/feed/docs/rss2.html#ltcategorygtSubelementOfLtitemgtv
 type CategoryDomain string
 
-// Whether domain (<category>) is valid.
-func (r CategoryDomain) IsValid() (bool, error) {
-	msg := fmt.Sprintf("Attribute domain value '%s' is invalid", r)
+// Returns whether 'domain' is valid and a slice containing any errors.
+func (r CategoryDomain) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Attribute 'domain' of <category> value '%s' is invalid", r)
 	if ok, err := IsNotEmpty(string(r)); !ok {
-		return false, fmt.Errorf("%s: %w", msg, err)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	if ok, err := IsValidURI(string(r)); !ok {
-		return false, fmt.Errorf("%s: %w", msg, err)
-	}
-	return true, nil
+	return isValid, errs
 }
 
 // <generator> is an optional sub-element of <channel>.
@@ -628,22 +656,33 @@ func (r Day) IsValid() bool { return true }
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#hrelementsOfLtitemgt
 type Item struct {
-	XMLName     xml.Name    `xml:"item"`             // required
-	Title       Title       `xml:"title"`            // conditionally required
-	Link        Link        `xml:"link"`             // optional
-	Description Description `xml:"description"`      // conditionally required
-	Source      Source      `xml:"source"`           // optional
-	Enclosure   Enclosure   `xml:"enclosure"`        // optional
-	Category    Category    `xml:"category"`         // optional
-	PubDate     PubDate     `xml:"pubDate"`          // optional
-	GUID        GUID        `xml:"guid"`             // optional
-	Comments    Comments    `xml:"comments"`         // optional
-	Author      Author      `xml:"author,omitempty"` // optional
+	XMLName     xml.Name    `xml:"item"`                  // required
+	Title       Title       `xml:"title",omitempty`       // conditionally required
+	Link        Link        `xml:"link",omitempty`        // optional
+	Description Description `xml:"description,omitempty"` // conditionally required
+	Source      *Source     `xml:"source,omitempty"`      // optional
+	Enclosure   *Enclosure  `xml:"enclosure,omitempty"`   // optional
+	Category    *Category   `xml:"category,omitempty"`    // optional
+	PubDate     *PubDate    `xml:"pubDate,omitempty"`     // optional
+	GUID        *GUID       `xml:"guid,omitempty"`        // optional
+	Comments    *Comments   `xml:"comments,omitempty"`    // optional
+	Author      *Author     `xml:"author,omitempty"`      // optional
 }
 
-// Whether <item> is valid.
-func (r Item) IsValid() bool {
-	return r.Title.IsValid() || r.Description.IsValid()
+// Returns whether <item> is valid and a slice containing any errors.
+func (r Item) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> is invalid", r.XMLName.Local)
+	// At least one of title or description must be present.
+	if r.Title == "" && r.Description == "" {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w: one of <title> or <description> must be present", msg, ErrInvalidElement))
+	}
+	if ok, e := Validate(r); !ok {
+		isValid = false
+		errs = append(errs, e...)
+	}
+	return isValid, errs
 }
 
 // <source> is an optional sub-element of <item>.
@@ -688,6 +727,24 @@ func (r SourceURL) IsValid() (bool, []error) {
 // <enclosure> is an optional sub-element of <item>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
+//
+// NOTE: In most cases, the <enclosure> element is represented using a
+// self-closing tag:
+//
+//	<enclosure url="..." length="..." type="..." />
+//
+// From the XML specification,
+//
+//	>The representation of an empty element is either a start-tag immediately
+//	 followed by an end-tag, or an empty-element tag.
+//
+// Source: https://www.w3.org/TR/xml/#NT-ETag
+//
+// Self-closing tags are currently not implemented in encoding/xml:
+//   - https://github.com/golang/go/issues/21399
+//
+// Ideally, both forms (a start-tag immediately followed by an end-tag, or an
+// empty-element tag) represent valid XML, and therefore valid RSS.
 type Enclosure struct {
 	XMLName      xml.Name     `xml:"enclosure"`   // required
 	CharData     []byte       `xml:",chardata"`   // prohibited
@@ -699,7 +756,7 @@ type Enclosure struct {
 // Returns whether <enclosure> is valid and a slice containing any errors.
 func (r Enclosure) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <enclosure> value '%s' is invalid", r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
 	if ok, err := IsEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
@@ -768,15 +825,15 @@ func (r Type) IsValid() (bool, []error) {
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
 type GUID struct {
-	XMLName     xml.Name    `xml:"guid"`             // required
-	CharData    []byte      `xml:",chardata"`        // required
-	IsPermaLink IsPermaLink `xml:"isPermaLink,attr"` // optional
+	XMLName     xml.Name    `xml:"guid"`                       // required
+	CharData    []byte      `xml:",chardata"`                  // required
+	IsPermaLink IsPermaLink `xml:"isPermaLink,attr,omitempty"` // optional
 }
 
 // Returns whether <guid> is valid and a slice containing any errors.
 func (r GUID) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <guid> value '%s' is invalid", r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
 	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
@@ -816,17 +873,20 @@ func (r IsPermaLink) IsValid() (bool, []error) {
 // <comments> is an optional sub-element of <item>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltcommentsgtSubelementOfLtitemgt
-type Comments string
+type Comments struct {
+	XMLName  xml.Name `xml:"comments"`  // required
+	CharData []byte   `xml:",chardata"` // required
+}
 
 // Returns whether <comments> is valid and a slice containing any errors.
 func (r Comments) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <comments> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	if ok, err := IsValidURI(string(r)); !ok {
+	if ok, err := IsValidURI(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
@@ -836,17 +896,20 @@ func (r Comments) IsValid() (bool, []error) {
 // <author> is an optional sub-element of <item>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltauthorgtSubelementOfLtitemgt
-type Author string
+type Author struct {
+	XMLName  xml.Name `xml:"author"`    // required
+	CharData []byte   `xml:",chardata"` // required
+}
 
 // Returns whether <author> is valid and a slice containing any errors.
 func (r Author) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <author> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	if ok, err := IsValidMailAddress(string(r)); !ok {
+	if ok, err := IsValidMailAddress(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
