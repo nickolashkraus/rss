@@ -9,7 +9,7 @@ import "errors"
 
 var ErrEmptyValue = errors.New("Element must not have empty value")
 var ErrNonEmptyValue = errors.New("Element must not have value")
-var ErrInvalidElement = errors.New("Element must contain required sub-elements")
+var ErrInvalidElement = errors.New("Element must contain required sub-elements and/or attributes")
 var ErrInvalidValue = errors.New("Element must have valid value")
 var ErrInvalidDate = errors.New("Element must contain a valid date (RFC822)")
 var ErrInvalidMailAddress = errors.New("Element must contain a valid mail address (RFC5322)")

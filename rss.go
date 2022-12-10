@@ -222,11 +222,20 @@ func (r Channel) IsValid() bool {
 //   - https://validator.w3.org/feed/docs/rss2.html#requiredChannelElements
 //   - https://validator.w3.org/feed/docs/rss2.html#lttextinputgtSubelementOfLtchannelgt
 //   - https://validator.w3.org/feed/docs/rss2.html#hrelementsOfLtitemgt
-type Title string
+type Title struct {
+	XMLName  xml.Name `xml:"title"`     // required
+	CharData []byte   `xml:",chardata"` // required
+}
 
-// Whether <title> is valid.
-func (r Title) IsValid() bool {
-	return r != ""
+// Returns whether <title> is valid and a slice containing any errors.
+func (r Title) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	return isValid, errs
 }
 
 // <link> is a required sub-element of <channel>, <image>, <textInput>, and
@@ -237,14 +246,24 @@ func (r Title) IsValid() bool {
 //   - https://validator.w3.org/feed/docs/rss2.html#ltimagegtSubelementOfLtchannelgt
 //   - https://validator.w3.org/feed/docs/rss2.html#lttextinputgtSubelementOfLtchannelgt
 //   - https://validator.w3.org/feed/docs/rss2.html#hrelementsOfLtitemgt
-type Link string
+type Link struct {
+	XMLName  xml.Name `xml:"link"`      // required
+	CharData []byte   `xml:",chardata"` // required
+}
 
-// Whether <link> is valid.
-//
-// <link> must be a valid URL.
-func (r Link) IsValid() bool {
-	// return IsValidURI(string(r))
-	return true
+// Returns whether <link> is valid and a slice containing any errors.
+func (r Link) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	if ok, err := IsValidURI(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	return isValid, errs
 }
 
 // <description> is a required sub-element of <channel> and <textInput> and an
@@ -255,11 +274,20 @@ func (r Link) IsValid() bool {
 //   - https://validator.w3.org/feed/docs/rss2.html#ltimagegtSubelementOfLtchannelgt
 //   - https://validator.w3.org/feed/docs/rss2.html#lttextinputgtSubelementOfLtchannelgt
 //   - https://validator.w3.org/feed/docs/rss2.html#hrelementsOfLtitemgt
-type Description string
+type Description struct {
+	XMLName  xml.Name `xml:"description"` // required
+	CharData []byte   `xml:",chardata"`   // required
+}
 
-// Whether <descripton> is valid.
-func (r Description) IsValid() bool {
-	return r != ""
+// Returns whether <description> is valid and a slice containing any errors.
+func (r Description) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	return isValid, errs
 }
 
 // <language> is an optional sub-element of <channel>.
@@ -488,29 +516,30 @@ type Image struct {
 }
 
 // Whether <image> is valid.
-func (r Image) IsValid() bool {
-	// Required sub-elements: <url>, <title>, <link>
+func (r Image) IsValid() (bool, []error) {
+	return true, nil
+	// // Required sub-elements: <url>, <title>, <link>
+	// //
+	// // NOTE: In practice the image <title> and <link> should have the same value
+	// // as the channel's <title> and <link>.
 	//
-	// NOTE: In practice the image <title> and <link> should have the same value
-	// as the channel's <title> and <link>.
-	if r.URL.IsValid() || r.Title.IsValid() || r.Link.IsValid() {
-		return false
-	}
-	// Optional sub-elements: <width>, <height>, <description>
-	return r.Width.IsValid() && r.Height.IsValid()
+	//	if r.URL.IsValid() || r.Title.IsValid() || r.Link.IsValid() {
+	//		return false
+	//	}
+	//
+	// // Optional sub-elements: <width>, <height>, <description>
+	// return r.Width.IsValid() && r.Height.IsValid()
 }
 
 // <url> is a required sub-element of <image> and a required attribute of
 // <enclosure>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltimagegtSubelementOfLtchannelgt
-type URL string
-
-// Whether <url> is valid.
-func (r URL) IsValid() bool {
-	// return IsValidURI(string(r))
-	return true
-}
+//
+// 'url' is a required attribute of <enclosure>.
+//
+// See: https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
+type URL *string
 
 // <width> is an optional sub-element of <image>.
 //
@@ -562,8 +591,9 @@ type TextInput struct {
 }
 
 // Whether <textInput> is valid.
-func (r TextInput) IsValid() bool {
-	return r.Title != "" && r.Description != "" && r.Name != "" && r.Link != ""
+func (r TextInput) IsValid() (bool, []error) {
+	return true, nil
+	// return r.Title != "" && r.Description != "" && r.Name != "" && r.Link != ""
 }
 
 // <name> is a required sub-element of <textInput>.
@@ -656,17 +686,17 @@ func (r Day) IsValid() bool { return true }
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#hrelementsOfLtitemgt
 type Item struct {
-	XMLName     xml.Name    `xml:"item"`                  // required
-	Title       Title       `xml:"title",omitempty`       // conditionally required
-	Link        Link        `xml:"link",omitempty`        // optional
-	Description Description `xml:"description,omitempty"` // conditionally required
-	Source      *Source     `xml:"source,omitempty"`      // optional
-	Enclosure   *Enclosure  `xml:"enclosure,omitempty"`   // optional
-	Category    *Category   `xml:"category,omitempty"`    // optional
-	PubDate     *PubDate    `xml:"pubDate,omitempty"`     // optional
-	GUID        *GUID       `xml:"guid,omitempty"`        // optional
-	Comments    *Comments   `xml:"comments,omitempty"`    // optional
-	Author      *Author     `xml:"author,omitempty"`      // optional
+	XMLName     xml.Name     `xml:"item"`                  // required
+	Title       *Title       `xml:"title,omitempty"`       // conditionally required
+	Link        *Link        `xml:"link,omitempty"`        // optional
+	Description *Description `xml:"description,omitempty"` // conditionally required
+	Source      *Source      `xml:"source,omitempty"`      // optional
+	Enclosure   *Enclosure   `xml:"enclosure,omitempty"`   // optional
+	Category    *Category    `xml:"category,omitempty"`    // optional
+	PubDate     *PubDate     `xml:"pubDate,omitempty"`     // optional
+	GUID        *GUID        `xml:"guid,omitempty"`        // optional
+	Comments    *Comments    `xml:"comments,omitempty"`    // optional
+	Author      *Author      `xml:"author,omitempty"`      // optional
 }
 
 // Returns whether <item> is valid and a slice containing any errors.
@@ -674,7 +704,7 @@ func (r Item) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
 	msg := fmt.Sprintf("Element <%s> is invalid", r.XMLName.Local)
 	// At least one of title or description must be present.
-	if r.Title == "" && r.Description == "" {
+	if (r.Title == nil || string(r.Title.CharData) == "") && (r.Description == nil || string(r.Description.CharData) == "") {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w: one of <title> or <description> must be present", msg, ErrInvalidElement))
 	}
@@ -746,20 +776,58 @@ func (r SourceURL) IsValid() (bool, []error) {
 // Ideally, both forms (a start-tag immediately followed by an end-tag, or an
 // empty-element tag) represent valid XML, and therefore valid RSS.
 type Enclosure struct {
-	XMLName      xml.Name     `xml:"enclosure"`   // required
-	CharData     []byte       `xml:",chardata"`   // prohibited
-	EnclosureURL EnclosureURL `xml:"url,attr"`    // required
-	Length       Length       `xml:"length,attr"` // required
-	Type         Type         `xml:"type,attr"`   // required
+	XMLName  xml.Name `xml:"enclosure"`   // required
+	CharData []byte   `xml:",chardata"`   // prohibited
+	URL      URL      `xml:"url,attr"`    // required
+	Length   Length   `xml:"length,attr"` // required
+	Type     Type     `xml:"type,attr"`   // required
 }
 
 // Returns whether <enclosure> is valid and a slice containing any errors.
 func (r Enclosure) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	msg := fmt.Sprintf("Element <%s> is invalid", r.XMLName.Local)
 	if ok, err := IsEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	if r.URL == nil {
+		msg := fmt.Sprintf("Attribute 'url' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'url' of <%s> value '%s' is invalid", r.XMLName.Local, *r.URL)
+		if ok, err := IsNotEmpty(*r.URL); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
+		if ok, err := IsValidURI(*r.URL); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
+	}
+	if r.Length == nil {
+		msg := fmt.Sprintf("Attribute 'length' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'length' of <%s> value '%s' is invalid", r.XMLName.Local, *r.Length)
+		// 'length' must be a positive integer. NOTE: Use zero for unknown length.
+		if i, err := strconv.ParseUint(*r.Length, 10, 0); err != nil || i < 0 {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w: must be a positive integer", msg, ErrInvalidValue))
+		}
+	}
+	if r.Type == nil {
+		msg := fmt.Sprintf("Attribute 'type' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'type' of <%s> value '%s' is invalid", r.XMLName.Local, *r.Type)
+		if ok, err := IsNotEmpty(*r.Type); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
 	}
 	if ok, e := Validate(r); !ok {
 		isValid = false
@@ -768,58 +836,15 @@ func (r Enclosure) IsValid() (bool, []error) {
 	return isValid, errs
 }
 
-// 'url' is a required attribute of <enclosure>.
-//
-// See: https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
-type EnclosureURL string
-
-// Returns whether 'url' is valid and a slice containing any errors.
-func (r EnclosureURL) IsValid() (bool, []error) {
-	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Attribute 'url' of <enclosure> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
-	}
-	if ok, err := IsValidURI(string(r)); !ok {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
-	}
-	return isValid, errs
-}
-
 // 'length' is a required attribute of <enclosure>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
-type Length string
-
-// Returns whether 'length' is valid and a slice containing any errors.
-func (r Length) IsValid() (bool, []error) {
-	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Attribute 'length' of <enclosure> value '%s' is invalid", r)
-	// 'length' must be a positive integer. NOTE: Use zero for unknown length.
-	if i, err := strconv.ParseUint(string(r), 10, 0); err != nil || i < 0 {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w: must be a positive integer", msg, ErrInvalidValue))
-	}
-	return isValid, errs
-}
+type Length *string
 
 // 'type' is a required attribute of <enclosure>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
-type Type string
-
-// Returns whether 'type' is valid and a slice containing any errors.
-func (r Type) IsValid() (bool, []error) {
-	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Attribute 'type' of <enclosure> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
-	}
-	return isValid, errs
-}
+type Type *string
 
 // <guid> is an optional sub-element of <item>.
 //
@@ -833,22 +858,26 @@ type GUID struct {
 // Returns whether <guid> is valid and a slice containing any errors.
 func (r GUID) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
 	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
+	// 'isPermaLink' attribute must be "true" or "false"
+	if r.IsPermaLink != nil {
+		msg := fmt.Sprintf("Attribute 'isPermaLink' of <%s> value '%s' is invalid", r.XMLName.Local, *r.IsPermaLink)
+		if *r.IsPermaLink != "true" && *r.IsPermaLink != "false" {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w: must be \"true\" or \"false\"", msg, ErrInvalidValue))
+		}
+	}
 	// If the guid element has an attribute named isPermaLink with a value of
 	// true, the reader may assume that it is a permalink to the item.
-	if r.IsPermaLink == "true" {
+	if r.IsPermaLink != nil && *r.IsPermaLink == "true" {
 		if ok, err := IsValidURI(string(r.CharData)); !ok {
 			isValid = false
 			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 		}
-	}
-	if ok, e := Validate(r); !ok {
-		isValid = false
-		errs = append(errs, e...)
 	}
 	return isValid, errs
 }
@@ -856,19 +885,7 @@ func (r GUID) IsValid() (bool, []error) {
 // 'isPermaLink' is an optional attribute of <guid>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
-type IsPermaLink string
-
-// Returns whether 'isPermaLink' is valid and a slice containing any errors.
-func (r IsPermaLink) IsValid() (bool, []error) {
-	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Attribute 'isPermaLink' of <guid> value '%s' is invalid", r)
-	// 'isPermaLink' attribute must be "true" or "false"
-	if r != "true" && r != "false" {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w: must be \"true\" or \"false\"", msg, ErrInvalidValue))
-	}
-	return isValid, errs
-}
+type IsPermaLink *string
 
 // <comments> is an optional sub-element of <item>.
 //
@@ -881,7 +898,7 @@ type Comments struct {
 // Returns whether <comments> is valid and a slice containing any errors.
 func (r Comments) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
 	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
@@ -904,7 +921,7 @@ type Author struct {
 // Returns whether <author> is valid and a slice containing any errors.
 func (r Author) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
 	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
