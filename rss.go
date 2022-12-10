@@ -349,7 +349,7 @@ type PubDate struct {
 // See: http://asg.web.cmu.edu/rfc/rfc822.html
 func (r PubDate) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
 	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
@@ -378,7 +378,7 @@ type LastBuildDate struct {
 // See: http://asg.web.cmu.edu/rfc/rfc822.html
 func (r LastBuildDate) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
 	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
@@ -399,9 +399,9 @@ func (r LastBuildDate) IsValid() (bool, []error) {
 //   - https://validator.w3.org/feed/docs/rss2.html#optionalChannelElements
 //   - https://validator.w3.org/feed/docs/rss2.html#ltcategorygtSubelementOfLtitemgt
 type Category struct {
-	XMLName        xml.Name       `xml:"category"`              // required
-	CharData       []byte         `xml:",chardata"`             // required
-	CategoryDomain CategoryDomain `xml:"domain,attr,omitempty"` // optional
+	XMLName  xml.Name `xml:"category"`              // required
+	CharData []byte   `xml:",chardata"`             // required
+	Domain   Domain   `xml:"domain,attr,omitempty"` // optional
 }
 
 // Returns whether <category> is valid and a slice containing any errors.
@@ -410,36 +410,28 @@ type Category struct {
 // string.
 func (r Category) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Element <category> value '%s' is invalid", r)
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
 	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	if ok, e := Validate(r); !ok {
-		isValid = false
-		errs = append(errs, e...)
+	if r.Domain != nil {
+		msg := fmt.Sprintf("Attribute 'domain' of <%s> value '%s' is invalid", r.XMLName.Local, *r.Domain)
+		if ok, err := IsNotEmpty(*r.Domain); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
 	}
 	return isValid, errs
 }
 
-// 'domain' is an optional attribute of <category>.
-//
-// It differs from the required 'domain' attribute of <cloud>.
+// 'domain' is an optional attribute of <category> and a required attribute of
+// <cloud>.
 //
 // See:
 //   - https://validator.w3.org/feed/docs/rss2.html#ltcategorygtSubelementOfLtitemgtv
-type CategoryDomain string
-
-// Returns whether 'domain' is valid and a slice containing any errors.
-func (r CategoryDomain) IsValid() (bool, []error) {
-	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Attribute 'domain' of <category> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
-	}
-	return isValid, errs
-}
+//   - https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
+type Domain *string
 
 // <generator> is an optional sub-element of <channel>.
 //
@@ -462,28 +454,18 @@ func (r Docs) IsValid() bool { return true }
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
 type Cloud struct {
-	XMLName           xml.Name    `xml:"cloud"`                  // required
-	CloudDomain       CloudDomain `xml:"domain,attr"`            // required
-	Port              string      `xml:"port,attr"`              // required
-	Path              string      `xml:"path,attr"`              // required
-	RegisterProcedure string      `xml:"registerProcedure,attr"` // required
-	Protocol          string      `xml:"protocol,attr"`          // required
+	XMLName           xml.Name `xml:"cloud"`                  // required
+	Domain            Domain   `xml:"domain,attr"`            // required
+	Port              string   `xml:"port,attr"`              // required
+	Path              string   `xml:"path,attr"`              // required
+	RegisterProcedure string   `xml:"registerProcedure,attr"` // required
+	Protocol          string   `xml:"protocol,attr"`          // required
 }
 
 // Whether <cloud> is valid.
 //
 // TODO: https://www.rssboard.org/rsscloud-interface
 func (r Cloud) IsValid() bool { return true }
-
-// domain (<cloud>) is a required attribute of <cloud>. It differs from the
-// optional domain attribute of <category>.
-//
-// See:
-//   - https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
-type CloudDomain string
-
-// Whether domain (<cloud>) is valid.
-func (r CloudDomain) IsValid() bool { return true }
 
 // <ttl> is an optional sub-element of <channel>.
 //
@@ -539,6 +521,10 @@ func (r Image) IsValid() (bool, []error) {
 // 'url' is a required attribute of <enclosure>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
+//
+// 'url' is a required attribute of <source>.
+//
+// See: https://validator.w3.org/feed/docs/rss2.html#ltsourcegtSubelementOfLtitemgt
 type URL *string
 
 // <width> is an optional sub-element of <image>.
@@ -719,37 +705,28 @@ func (r Item) IsValid() (bool, []error) {
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltsourcegtSubelementOfLtitemgt
 type Source struct {
-	XMLName   xml.Name  `xml:"source"`    // required
-	CharData  []byte    `xml:",chardata"` // optional
-	SourceURL SourceURL `xml:"url,attr"`  // required
+	XMLName  xml.Name `xml:"source"`    // required
+	CharData []byte   `xml:",chardata"` // optional
+	URL      URL      `xml:"url,attr"`  // required
 }
 
 // Returns whether <source> is valid and a slice containing any errors.
 func (r Source) IsValid() (bool, []error) {
 	isValid, errs := true, []error{}
-	if ok, e := Validate(r); !ok {
+	if r.URL == nil {
+		msg := fmt.Sprintf("Attribute 'url' of <%s> is required", r.XMLName.Local)
 		isValid = false
-		errs = append(errs, e...)
-	}
-	return isValid, errs
-}
-
-// 'url' is a required attribute of <source>.
-//
-// See: https://validator.w3.org/feed/docs/rss2.html#ltsourcegtSubelementOfLtitemgt
-type SourceURL string
-
-// Returns whether 'url' is valid and a slice containing any errors.
-func (r SourceURL) IsValid() (bool, []error) {
-	isValid, errs := true, []error{}
-	msg := fmt.Sprintf("Attribute 'url' of <source> value '%s' is invalid", r)
-	if ok, err := IsNotEmpty(string(r)); !ok {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
-	}
-	if ok, err := IsValidURI(string(r)); !ok {
-		isValid = false
-		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'url' of <%s> value '%s' is invalid", r.XMLName.Local, *r.URL)
+		if ok, err := IsNotEmpty(*r.URL); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
+		if ok, err := IsValidURI(*r.URL); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
 	}
 	return isValid, errs
 }
@@ -828,10 +805,6 @@ func (r Enclosure) IsValid() (bool, []error) {
 			isValid = false
 			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 		}
-	}
-	if ok, e := Validate(r); !ok {
-		isValid = false
-		errs = append(errs, e...)
 	}
 	return isValid, errs
 }

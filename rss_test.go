@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO: Remove superfluous string conversions.
+// TODO: Use table drive tests.
+
 // Returns a pointer to the passed value.
 func Ptr[T any](v T) *T {
 	return &v
@@ -35,6 +38,7 @@ func TestTitle(t *testing.T) {
 		assert.False(t, ret)
 		assert.Equal(t, 1, len(errs))
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <title> value '' is invalid")
 	})
 	t.Run("test <title> - unmarshal", func(t *testing.T) {
 		var r Title
@@ -77,6 +81,9 @@ func TestLink(t *testing.T) {
 		assert.False(t, ret)
 		assert.Equal(t, 2, len(errs))
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <link> value '' is invalid")
+		assert.ErrorIs(t, errs[1], ErrInvalidURI)
+		assert.ErrorContains(t, errs[1], "Element <link> value '' is invalid")
 	})
 	t.Run("test <link> - fail - invalid uri", func(t *testing.T) {
 		var r Link = Link{
@@ -87,17 +94,7 @@ func TestLink(t *testing.T) {
 		assert.False(t, ret)
 		assert.Equal(t, 1, len(errs))
 		assert.ErrorIs(t, errs[0], ErrInvalidURI)
-	})
-	t.Run("test <link> - fail - multiple", func(t *testing.T) {
-		var r Link = Link{
-			XMLName:  xml.Name{Space: "", Local: "link"},
-			CharData: []byte(""),
-		}
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 2, len(errs))
-		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-		assert.ErrorIs(t, errs[1], ErrInvalidURI)
+		assert.ErrorContains(t, errs[0], "Element <link> value 'bad uri' is invalid")
 	})
 	t.Run("test <link> - unmarshal", func(t *testing.T) {
 		var r Link
@@ -140,6 +137,7 @@ func TestDescription(t *testing.T) {
 		assert.False(t, ret)
 		assert.Equal(t, 1, len(errs))
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <description> value '' is invalid")
 	})
 	t.Run("test <description> - unmarshal", func(t *testing.T) {
 		var r Description
@@ -190,6 +188,9 @@ func TestPubDate(t *testing.T) {
 		assert.Equal(t, 2, len(errs))
 		assert.False(t, ret)
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <pubDate> value '' is invalid")
+		assert.ErrorIs(t, errs[1], ErrInvalidDate)
+		assert.ErrorContains(t, errs[1], "Element <pubDate> value '' is invalid")
 	})
 	t.Run("test <pubDate> - fail - invalid date", func(t *testing.T) {
 		var r = PubDate{
@@ -200,17 +201,7 @@ func TestPubDate(t *testing.T) {
 		assert.Equal(t, 1, len(errs))
 		assert.False(t, ret)
 		assert.ErrorIs(t, errs[0], ErrInvalidDate)
-	})
-	t.Run("test <pubDate> - fail - multiple", func(t *testing.T) {
-		var r = PubDate{
-			XMLName:  xml.Name{Space: "", Local: "pubDate"},
-			CharData: []byte(""),
-		}
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 2, len(errs))
-		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-		assert.ErrorIs(t, errs[1], ErrInvalidDate)
+		assert.ErrorContains(t, errs[0], "Element <pubDate> value 'bad date' is invalid")
 	})
 	t.Run("test <pubDate> - unmarshal", func(t *testing.T) {
 		var r PubDate
@@ -261,6 +252,9 @@ func TestLastBuildDate(t *testing.T) {
 		assert.Equal(t, 2, len(errs))
 		assert.False(t, ret)
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <lastBuildDate> value '' is invalid")
+		assert.ErrorIs(t, errs[1], ErrInvalidDate)
+		assert.ErrorContains(t, errs[1], "Element <lastBuildDate> value '' is invalid")
 	})
 	t.Run("test <lastBuildDate> - fail - invalid date", func(t *testing.T) {
 		var r = LastBuildDate{
@@ -271,17 +265,7 @@ func TestLastBuildDate(t *testing.T) {
 		assert.Equal(t, 1, len(errs))
 		assert.False(t, ret)
 		assert.ErrorIs(t, errs[0], ErrInvalidDate)
-	})
-	t.Run("test <lastBuildDate> - fail - multiple", func(t *testing.T) {
-		var r = LastBuildDate{
-			XMLName:  xml.Name{Space: "", Local: "lastBuildDate"},
-			CharData: []byte(""),
-		}
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 2, len(errs))
-		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-		assert.ErrorIs(t, errs[1], ErrInvalidDate)
+		assert.ErrorContains(t, errs[0], "Element <lastBuildDate> value 'bad date' is invalid")
 	})
 	t.Run("test <lastBuildDate> - unmarshal", func(t *testing.T) {
 		var r LastBuildDate
@@ -308,9 +292,9 @@ func TestLastBuildDate(t *testing.T) {
 func TestCategory(t *testing.T) {
 	t.Run("test <category> - ok", func(t *testing.T) {
 		var r Category = Category{
-			XMLName:        xml.Name{Space: "", Local: "category"},
-			CharData:       []byte(`Category`),
-			CategoryDomain: "https://example.com/category",
+			XMLName:  xml.Name{Space: "", Local: "category"},
+			CharData: []byte(`Category`),
+			Domain:   Ptr("https://example.com/category"),
 		}
 		ret, errs := r.IsValid()
 		assert.True(t, ret)
@@ -318,40 +302,41 @@ func TestCategory(t *testing.T) {
 	})
 	t.Run("test <category> - fail - empty", func(t *testing.T) {
 		var r Category = Category{
-			XMLName:        xml.Name{Space: "", Local: "category"},
-			CharData:       []byte(``),
-			CategoryDomain: "https://example.com/category",
+			XMLName:  xml.Name{Space: "", Local: "category"},
+			CharData: []byte(``),
+			Domain:   Ptr("https://example.com/category"),
 		}
 		ret, errs := r.IsValid()
 		assert.False(t, ret)
 		assert.Equal(t, 1, len(errs))
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <category> value '' is invalid")
 	})
-	t.Run("test <category> - fail - multiple", func(t *testing.T) {
+	t.Run("test <category domain=\"...\"> - fail - empty", func(t *testing.T) {
 		var r Category = Category{
-			XMLName:        xml.Name{Space: "", Local: "category"},
-			CharData:       []byte(``),
-			CategoryDomain: "",
+			XMLName:  xml.Name{Space: "", Local: "category"},
+			CharData: []byte(`Category`),
+			Domain:   Ptr(""),
 		}
 		ret, errs := r.IsValid()
 		assert.False(t, ret)
-		assert.Equal(t, 2, len(errs))
+		assert.Equal(t, 1, len(errs))
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-		assert.ErrorIs(t, errs[1], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Attribute 'domain' of <category> value '' is invalid")
 	})
 	t.Run("test <category> - unmarshal", func(t *testing.T) {
 		var r Category
 		s := []byte(`<category domain="https://example.com/category">Category</category>`)
 		err := xml.Unmarshal(s, &r)
 		assert.Equal(t, "Category", string(r.CharData))
-		assert.Equal(t, "https://example.com/category", string(r.CategoryDomain))
+		assert.Equal(t, "https://example.com/category", *r.Domain)
 		assert.Nil(t, err)
 	})
 	t.Run("test <category> - marshal", func(t *testing.T) {
 		var r Category = Category{
-			XMLName:        xml.Name{Space: "", Local: "category"},
-			CharData:       []byte(`Category`),
-			CategoryDomain: "https://example.com/category",
+			XMLName:  xml.Name{Space: "", Local: "category"},
+			CharData: []byte(`Category`),
+			Domain:   Ptr("https://example.com/category"),
 		}
 		exp := []byte(`<category domain="https://example.com/category">Category</category>`)
 		s, err := xml.Marshal(r)
@@ -360,22 +345,6 @@ func TestCategory(t *testing.T) {
 		ret, errs := Validate(r)
 		assert.True(t, ret)
 		assert.Empty(t, errs)
-	})
-}
-
-func TestCategoryDomain(t *testing.T) {
-	t.Run("test <category domain=\"...\"> - ok", func(t *testing.T) {
-		var r CategoryDomain = "https://example.com/category"
-		ret, errs := r.IsValid()
-		assert.True(t, ret)
-		assert.Empty(t, errs)
-	})
-	t.Run("test <category domain=\"...\"> - fail - empty", func(t *testing.T) {
-		var r CategoryDomain = ""
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 1, len(errs))
-		assert.ErrorIs(t, errs[0], ErrEmptyValue)
 	})
 }
 
@@ -396,9 +365,9 @@ func TestItem(t *testing.T) {
 				CharData: []byte("Description"),
 			},
 			Source: &Source{
-				XMLName:   xml.Name{Space: "", Local: "source"},
-				CharData:  []byte("Title"),
-				SourceURL: "https://example.com/source.xml",
+				XMLName:  xml.Name{Space: "", Local: "source"},
+				CharData: []byte("Title"),
+				URL:      Ptr("https://example.com/source.xml"),
 			},
 			Enclosure: &Enclosure{
 				XMLName:  xml.Name{Space: "", Local: "enclosure"},
@@ -408,9 +377,9 @@ func TestItem(t *testing.T) {
 				Type:     Ptr("audio/mpeg"),
 			},
 			Category: &Category{
-				XMLName:        xml.Name{Space: "", Local: "category"},
-				CharData:       []byte("Category"),
-				CategoryDomain: "https://example.com/category",
+				XMLName:  xml.Name{Space: "", Local: "category"},
+				CharData: []byte("Category"),
+				Domain:   Ptr("https://example.com/category"),
 			},
 			PubDate: &PubDate{
 				XMLName:  xml.Name{Space: "", Local: "pubDate"},
@@ -451,9 +420,9 @@ func TestItem(t *testing.T) {
 				CharData: []byte(""),
 			},
 			Source: &Source{
-				XMLName:   xml.Name{Space: "", Local: "source"},
-				CharData:  []byte("Title"),
-				SourceURL: "https://example.com/source.xml",
+				XMLName:  xml.Name{Space: "", Local: "source"},
+				CharData: []byte("Title"),
+				URL:      Ptr("https://example.com/source.xml"),
 			},
 			Enclosure: &Enclosure{
 				XMLName:  xml.Name{Space: "", Local: "enclosure"},
@@ -463,9 +432,9 @@ func TestItem(t *testing.T) {
 				Type:     Ptr("audio/mpeg"),
 			},
 			Category: &Category{
-				XMLName:        xml.Name{Space: "", Local: "category"},
-				CharData:       []byte("Category"),
-				CategoryDomain: "https://example.com/category",
+				XMLName:  xml.Name{Space: "", Local: "category"},
+				CharData: []byte("Category"),
+				Domain:   Ptr("https://example.com/category"),
 			},
 			PubDate: &PubDate{
 				XMLName:  xml.Name{Space: "", Local: "pubDate"},
@@ -489,8 +458,11 @@ func TestItem(t *testing.T) {
 		assert.False(t, ret)
 		assert.Equal(t, 3, len(errs))
 		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Element <item> is invalid")
 		assert.ErrorIs(t, errs[1], ErrEmptyValue)
+		assert.ErrorContains(t, errs[1], "Element <title> value '' is invalid")
 		assert.ErrorIs(t, errs[2], ErrEmptyValue)
+		assert.ErrorContains(t, errs[2], "Element <description> value '' is invalid")
 	})
 	t.Run("test <item> - unmarshal", func(t *testing.T) {
 		var r Item
@@ -511,16 +483,16 @@ func TestItem(t *testing.T) {
 		assert.Equal(t, "Title", string(r.Title.CharData))
 		assert.Equal(t, "https://example.com", string(r.Link.CharData))
 		assert.Equal(t, "Description", string(r.Description.CharData))
-		assert.Equal(t, "https://example.com/source.xml", string(r.Source.SourceURL))
+		assert.Equal(t, "https://example.com/source.xml", *r.Source.URL)
 		assert.Equal(t, "", string(r.Enclosure.CharData))
-		assert.Equal(t, "https://example.com/audio.mp3", string(*r.Enclosure.URL))
-		assert.Equal(t, "1337", string(*r.Enclosure.Length))
-		assert.Equal(t, "audio/mpeg", string(*r.Enclosure.Type))
+		assert.Equal(t, "https://example.com/audio.mp3", *r.Enclosure.URL)
+		assert.Equal(t, "1337", *r.Enclosure.Length)
+		assert.Equal(t, "audio/mpeg", *r.Enclosure.Type)
 		assert.Equal(t, "Category", string(r.Category.CharData))
-		assert.Equal(t, "https://example.com/category", string(r.Category.CategoryDomain))
+		assert.Equal(t, "https://example.com/category", *r.Category.Domain)
 		assert.Equal(t, "Thu, 01 Jan 1970 00:00:00 GMT", string(r.PubDate.CharData))
 		assert.Equal(t, "https://example.com/guid", string(r.GUID.CharData))
-		assert.Equal(t, "true", string(*r.GUID.IsPermaLink))
+		assert.Equal(t, "true", *r.GUID.IsPermaLink)
 		assert.Equal(t, "https://example.com/comments", string(r.Comments.CharData))
 		assert.Equal(t, "first.last@example.com", string(r.Author.CharData))
 		assert.Nil(t, err)
@@ -558,9 +530,9 @@ func TestItem(t *testing.T) {
 				CharData: []byte("Description"),
 			},
 			Source: &Source{
-				XMLName:   xml.Name{Space: "", Local: "source"},
-				CharData:  []byte("Title"),
-				SourceURL: "https://example.com/source.xml",
+				XMLName:  xml.Name{Space: "", Local: "source"},
+				CharData: []byte("Title"),
+				URL:      Ptr("https://example.com/source.xml"),
 			},
 			Enclosure: &Enclosure{
 				XMLName:  xml.Name{Space: "", Local: "enclosure"},
@@ -570,9 +542,9 @@ func TestItem(t *testing.T) {
 				Type:     Ptr("audio/mpeg"),
 			},
 			Category: &Category{
-				XMLName:        xml.Name{Space: "", Local: "category"},
-				CharData:       []byte("Category"),
-				CategoryDomain: "https://example.com/category",
+				XMLName:  xml.Name{Space: "", Local: "category"},
+				CharData: []byte("Category"),
+				Domain:   Ptr("https://example.com/category"),
 			},
 			PubDate: &PubDate{
 				XMLName:  xml.Name{Space: "", Local: "pubDate"},
@@ -604,50 +576,75 @@ func TestItem(t *testing.T) {
 
 func TestSource(t *testing.T) {
 	t.Run("test <source> - ok", func(t *testing.T) {
-		var r Source
-		r = Source{
-			XMLName:   xml.Name{Space: "", Local: "source"},
-			CharData:  []byte("Title"),
-			SourceURL: "https://example.com/source.xml",
+		var r = Source{
+			XMLName:  xml.Name{Space: "", Local: "source"},
+			CharData: []byte("Title"),
+			URL:      Ptr("https://example.com/source.xml"),
 		}
 		ret, errs := r.IsValid()
 		assert.True(t, ret)
 		assert.Empty(t, errs)
+	})
+	t.Run("test <source> - ok - empty", func(t *testing.T) {
 		// NOTE: <source> can be empty.
-		r = Source{
-			XMLName:   xml.Name{Space: "", Local: "source"},
-			CharData:  []byte(""),
-			SourceURL: "https://example.com/source.xml",
+		var r = Source{
+			XMLName:  xml.Name{Space: "", Local: "source"},
+			CharData: []byte(""),
+			URL:      Ptr("https://example.com/source.xml"),
 		}
-		ret, errs = r.IsValid()
+		ret, errs := r.IsValid()
 		assert.True(t, ret)
 		assert.Empty(t, errs)
 	})
-	t.Run("test <source> - fail - multiple", func(t *testing.T) {
-		var r Source = Source{
-			XMLName:   xml.Name{Space: "", Local: "source"},
-			CharData:  []byte(""),
-			SourceURL: "",
+	t.Run("test <source url=\"...\"> - fail - nil", func(t *testing.T) {
+		var r = Source{
+			XMLName:  xml.Name{Space: "", Local: "source"},
+			CharData: []byte("Title"),
+			URL:      nil,
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Attribute 'url' of <source> is required")
+	})
+	t.Run("test <source url=\"...\"> - fail - empty", func(t *testing.T) {
+		var r = Source{
+			XMLName:  xml.Name{Space: "", Local: "source"},
+			CharData: []byte("Title"),
+			URL:      Ptr(""),
 		}
 		ret, errs := r.IsValid()
 		assert.False(t, ret)
 		assert.Equal(t, 2, len(errs))
 		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-		assert.ErrorIs(t, errs[1], ErrInvalidURI)
+		assert.ErrorContains(t, errs[0], "Attribute 'url' of <source> value '' is invalid")
+	})
+	t.Run("test <source url=\"...\"> - fail - invalid uri", func(t *testing.T) {
+		var r = Source{
+			XMLName:  xml.Name{Space: "", Local: "source"},
+			CharData: []byte("Title"),
+			URL:      Ptr("bad uri"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidURI)
+		assert.ErrorContains(t, errs[0], "Attribute 'url' of <source> value 'bad uri' is invalid")
 	})
 	t.Run("test <source> - unmarshal", func(t *testing.T) {
 		var r Source
 		s := []byte(`<source url="https://example.com/source.xml">Title</source>`)
 		err := xml.Unmarshal(s, &r)
 		assert.Equal(t, "Title", string(r.CharData))
-		assert.Equal(t, "https://example.com/source.xml", string(r.SourceURL))
+		assert.Equal(t, "https://example.com/source.xml", *r.URL)
 		assert.Nil(t, err)
 	})
 	t.Run("test <source> - marshal", func(t *testing.T) {
-		var r Source = Source{
-			XMLName:   xml.Name{Space: "", Local: "source"},
-			CharData:  []byte("Title"),
-			SourceURL: "https://example.com/source.xml",
+		var r = Source{
+			XMLName:  xml.Name{Space: "", Local: "source"},
+			CharData: []byte("Title"),
+			URL:      Ptr("https://example.com/source.xml"),
 		}
 		exp := []byte(`<source url="https://example.com/source.xml">Title</source>`)
 		s, err := xml.Marshal(r)
@@ -656,37 +653,6 @@ func TestSource(t *testing.T) {
 		ret, errs := Validate(r)
 		assert.True(t, ret)
 		assert.Empty(t, errs)
-	})
-}
-
-func TestSourceURL(t *testing.T) {
-	t.Run("test <source url=\"...\"> - ok", func(t *testing.T) {
-		var r SourceURL = "https://example.com/source.xml"
-		ret, errs := r.IsValid()
-		assert.True(t, ret)
-		assert.Empty(t, errs)
-	})
-	t.Run("test <source url=\"...\"> - fail - empty", func(t *testing.T) {
-		var r SourceURL = ""
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 2, len(errs))
-		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-	})
-	t.Run("test <source url=\"...\"> - fail - invalid uri", func(t *testing.T) {
-		var r SourceURL = "bad uri"
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 1, len(errs))
-		assert.ErrorIs(t, errs[0], ErrInvalidURI)
-	})
-	t.Run("test <source url=\"...\"> - fail - multiple", func(t *testing.T) {
-		var r SourceURL = ""
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 2, len(errs))
-		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-		assert.ErrorIs(t, errs[1], ErrInvalidURI)
 	})
 }
 
@@ -820,9 +786,9 @@ func TestEnclosure(t *testing.T) {
 		s := []byte(`<enclosure url="https://example.com/audio.mp3" length="1337" type="audio/mpeg" />`)
 		err := xml.Unmarshal(s, &r)
 		assert.Equal(t, "", string(r.CharData))
-		assert.Equal(t, "https://example.com/audio.mp3", string(*r.URL))
-		assert.Equal(t, "1337", string(*r.Length))
-		assert.Equal(t, "audio/mpeg", string(*r.Type))
+		assert.Equal(t, "https://example.com/audio.mp3", *r.URL)
+		assert.Equal(t, "1337", *r.Length)
+		assert.Equal(t, "audio/mpeg", *r.Type)
 		assert.Nil(t, err)
 	})
 	t.Run("test <enclosure> - marshal", func(t *testing.T) {
@@ -915,7 +881,7 @@ func TestGUID(t *testing.T) {
 		s = []byte(`<guid isPermaLink="true">https://example.com/guid</guid>`)
 		err = xml.Unmarshal(s, &r)
 		assert.Equal(t, "https://example.com/guid", string(r.CharData))
-		assert.Equal(t, "true", string(*r.IsPermaLink))
+		assert.Equal(t, "true", *r.IsPermaLink)
 		assert.Nil(t, err)
 	})
 	t.Run("test <guid> - marshal", func(t *testing.T) {
