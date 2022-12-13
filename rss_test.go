@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: Remove superfluous string conversions.
 // TODO: Use table drive tests.
 
 // Returns a pointer to the passed value.
@@ -152,6 +151,184 @@ func TestDescription(t *testing.T) {
 			CharData: []byte("Description"),
 		}
 		exp := []byte(`<description>Description</description>`)
+		s, err := xml.Marshal(r)
+		assert.Equal(t, exp, s)
+		assert.Nil(t, err)
+		ret, errs := Validate(r)
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+}
+
+func TestTTL(t *testing.T) {
+	t.Run("test <ttl> - ok", func(t *testing.T) {
+		var r TTL = TTL{
+			XMLName:  xml.Name{Space: "", Local: "ttl"},
+			CharData: []byte("60"),
+		}
+		ret, errs := r.IsValid()
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+	t.Run("test <ttl> - fail - empty", func(t *testing.T) {
+		var r TTL = TTL{
+			XMLName:  xml.Name{Space: "", Local: "ttl"},
+			CharData: []byte(""),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 2, len(errs))
+		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <ttl> value '' is invalid")
+		assert.ErrorIs(t, errs[1], ErrInvalidValue)
+		assert.ErrorContains(t, errs[1], "Element <ttl> value '' is invalid")
+	})
+	t.Run("test <ttl> - fail - invalid value", func(t *testing.T) {
+		var r TTL = TTL{
+			XMLName:  xml.Name{Space: "", Local: "ttl"},
+			CharData: []byte("-1"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidValue)
+		assert.ErrorContains(t, errs[0], "Element <ttl> value '-1' is invalid")
+	})
+	t.Run("test <ttl> - unmarshal", func(t *testing.T) {
+		var r TTL
+		s := []byte(`<ttl>60</ttl>`)
+		err := xml.Unmarshal(s, &r)
+		assert.Equal(t, "60", string(r.CharData))
+		assert.Nil(t, err)
+	})
+	t.Run("test <ttl> - marshal", func(t *testing.T) {
+		var r TTL = TTL{
+			XMLName:  xml.Name{Space: "", Local: "ttl"},
+			CharData: []byte("60"),
+		}
+		exp := []byte(`<ttl>60</ttl>`)
+		s, err := xml.Marshal(r)
+		assert.Equal(t, exp, s)
+		assert.Nil(t, err)
+		ret, errs := Validate(r)
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+}
+
+func TestTextInput(t *testing.T) {
+	t.Run("test <textInput> - ok", func(t *testing.T) {
+		var r TextInput = TextInput{
+			XMLName: xml.Name{Space: "", Local: "textInput"},
+			Title: &Title{
+				XMLName:  xml.Name{Space: "", Local: "title"},
+				CharData: []byte("Title"),
+			},
+			Description: &Description{
+				XMLName:  xml.Name{Space: "", Local: "description"},
+				CharData: []byte("Description"),
+			},
+			Name: &Name{
+				XMLName:  xml.Name{Space: "", Local: "name"},
+				CharData: []byte("Name"),
+			},
+			Link: &Link{
+				XMLName:  xml.Name{Space: "", Local: "link"},
+				CharData: []byte("https://example.com/search"),
+			},
+		}
+		ret, errs := r.IsValid()
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+	t.Run("test <textInput> - fail - nil", func(t *testing.T) {
+		var r TextInput = TextInput{
+			XMLName:     xml.Name{Space: "", Local: "textInput"},
+			Title:       nil,
+			Description: nil,
+			Name:        nil,
+			Link:        nil,
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Element <textInput> is invalid")
+	})
+	t.Run("test <textInput> - unmarshal", func(t *testing.T) {
+		var r TextInput
+		s := []byte(`<textInput><title>Title</title><description>Description</description><name>Name</name><link>https://example.com/search</link></textInput>`)
+		err := xml.Unmarshal(s, &r)
+		assert.Equal(t, "Title", string(r.Title.CharData))
+		assert.Equal(t, "Description", string(r.Description.CharData))
+		assert.Equal(t, "Name", string(r.Name.CharData))
+		assert.Equal(t, "https://example.com/search", string(r.Link.CharData))
+		assert.Nil(t, err)
+	})
+	t.Run("test <textInput> - marshal", func(t *testing.T) {
+		var r TextInput = TextInput{
+			XMLName: xml.Name{Space: "", Local: "textInput"},
+			Title: &Title{
+				XMLName:  xml.Name{Space: "", Local: "title"},
+				CharData: []byte("Title"),
+			},
+			Description: &Description{
+				XMLName:  xml.Name{Space: "", Local: "description"},
+				CharData: []byte("Description"),
+			},
+			Name: &Name{
+				XMLName:  xml.Name{Space: "", Local: "name"},
+				CharData: []byte("Name"),
+			},
+			Link: &Link{
+				XMLName:  xml.Name{Space: "", Local: "link"},
+				CharData: []byte("https://example.com/search"),
+			},
+		}
+		exp := []byte(`<textInput><title>Title</title><description>Description</description><name>Name</name><link>https://example.com/search</link></textInput>`)
+		s, err := xml.Marshal(r)
+		assert.Equal(t, exp, s)
+		assert.Nil(t, err)
+		ret, errs := Validate(r)
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+}
+
+func TestName(t *testing.T) {
+	t.Run("test <name> - ok", func(t *testing.T) {
+		var r Name = Name{
+			XMLName:  xml.Name{Space: "", Local: "name"},
+			CharData: []byte("Name"),
+		}
+		ret, errs := r.IsValid()
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+	t.Run("test <name> - fail - empty", func(t *testing.T) {
+		var r Name = Name{
+			XMLName:  xml.Name{Space: "", Local: "name"},
+			CharData: []byte(""),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <name> value '' is invalid")
+	})
+	t.Run("test <name> - unmarshal", func(t *testing.T) {
+		var r Name
+		s := []byte(`<name>Name</name>`)
+		err := xml.Unmarshal(s, &r)
+		assert.Equal(t, "Name", string(r.CharData))
+		assert.Nil(t, err)
+	})
+	t.Run("test <name> - marshal", func(t *testing.T) {
+		var r Name = Name{
+			XMLName:  xml.Name{Space: "", Local: "name"},
+			CharData: []byte("Name"),
+		}
+		exp := []byte(`<name>Name</name>`)
 		s, err := xml.Marshal(r)
 		assert.Equal(t, exp, s)
 		assert.Nil(t, err)

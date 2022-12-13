@@ -470,16 +470,25 @@ func (r Cloud) IsValid() bool { return true }
 // <ttl> is an optional sub-element of <channel>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltttlgtSubelementOfLtchannelgt
-type TTL string
+type TTL struct {
+	XMLName  xml.Name `xml:"ttl"`       // required
+	CharData []byte   `xml:",chardata"` // required
+}
 
-// Whether <ttl> is valid.
-//
-// <ttl> must be a positive integer.
-func (r TTL) IsValid() bool {
-	if i, err := strconv.ParseUint(string(r), 10, 0); err != nil || i < 0 {
-		return false
+// Returns whether <ttl> is valid and a slice containing any errors.
+func (r TTL) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	return true
+	// '<ttl>' must be a positive integer.
+	if i, err := strconv.ParseUint(string(r.CharData), 10, 0); err != nil || i < 0 {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w: must be a positive integer", msg, ErrInvalidValue))
+	}
+	return isValid, errs
 }
 
 // <image> is an optional sub-element of <channel>.
@@ -513,18 +522,14 @@ func (r Image) IsValid() (bool, []error) {
 	// return r.Width.IsValid() && r.Height.IsValid()
 }
 
-// <url> is a required sub-element of <image> and a required attribute of
-// <enclosure>.
+// <url> is a required sub-element of <image>.
 //
-// See: https://validator.w3.org/feed/docs/rss2.html#ltimagegtSubelementOfLtchannelgt
+// It is also a required attribute of <source> and <enclosure>.
 //
-// 'url' is a required attribute of <enclosure>.
-//
-// See: https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
-//
-// 'url' is a required attribute of <source>.
-//
-// See: https://validator.w3.org/feed/docs/rss2.html#ltsourcegtSubelementOfLtitemgt
+// See:
+//   - https://validator.w3.org/feed/docs/rss2.html#ltimagegtSubelementOfLtchannelgt
+//   - https://validator.w3.org/feed/docs/rss2.html#ltsourcegtSubelementOfLtitemgt
+//   - https://validator.w3.org/feed/docs/rss2.html#ltenclosuregtSubelementOfLtitemgt
 type URL *string
 
 // <width> is an optional sub-element of <image>.
@@ -569,26 +574,48 @@ func (r Rating) IsValid() bool { return true }
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#lttextinputgtSubelementOfLtchannelgt
 type TextInput struct {
-	XMLName     xml.Name    `xml:"textInput"`   // required
-	Title       Title       `xml:"title"`       // required
-	Description Description `xml:"description"` // required
-	Name        Name        `xml:"name"`        // required
-	Link        Link        `xml:"link"`        // required
+	XMLName     xml.Name     `xml:"textInput"`   // required
+	Title       *Title       `xml:"title"`       // required
+	Description *Description `xml:"description"` // required
+	Name        *Name        `xml:"name"`        // required
+	Link        *Link        `xml:"link"`        // required
 }
 
-// Whether <textInput> is valid.
+// Returns whether <textInput> is valid and a slice containing any errors.
 func (r TextInput) IsValid() (bool, []error) {
-	return true, nil
-	// return r.Title != "" && r.Description != "" && r.Name != "" && r.Link != ""
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> is invalid", r.XMLName.Local)
+	// <textInput> contains four required sub-elements: <title>, <description>,
+	// <name>, <link>
+	if r.Title == nil || r.Description == nil || r.Name == nil || r.Link == nil {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w: <title>, <description>, <name> and <link> must be present", msg, ErrInvalidElement))
+	}
+	if ok, e := Validate(r); !ok {
+		isValid = false
+		errs = append(errs, e...)
+	}
+	return isValid, errs
 }
 
 // <name> is a required sub-element of <textInput>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#lttextinputgtSubelementOfLtchannelgt
-type Name string
+type Name struct {
+	XMLName  xml.Name `xml:"name"`      // required
+	CharData []byte   `xml:",chardata"` // required
+}
 
-// Whether <name> is valid.
-func (r Name) IsValid() bool { return true }
+// Returns whether <name> is valid and a slice containing any errors.
+func (r Name) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> value '%s' is invalid", r.XMLName.Local, r.CharData)
+	if ok, err := IsNotEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	return isValid, errs
+}
 
 // <skipHours> is an optional sub-element of <channel>.
 //

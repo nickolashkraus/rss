@@ -28,6 +28,13 @@ func IsEmpty(s string) (bool, error) {
 	return true, nil
 }
 
+// Whether 's' is positive integer.
+//
+// TODO
+func IsPositiveInteger(s string) (bool, error) {
+	return true, nil
+}
+
 // Whether 's' is a valid date (RFC822).
 //
 // TODO: Valiate day of week.
