@@ -160,6 +160,222 @@ func TestDescription(t *testing.T) {
 	})
 }
 
+func TestCloud(t *testing.T) {
+	t.Run("test <cloud> - ok", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+	t.Run("test <cloud> - fail - not empty", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			CharData:          []byte("not empty"),
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrNonEmptyValue)
+		assert.ErrorContains(t, errs[0], "Element <cloud> is invalid")
+	})
+	t.Run("test <cloud domain=\"...\"> - fail - nil", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            nil,
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Attribute 'domain' of <cloud> is required")
+	})
+	t.Run("test <cloud domain=\"...\"> - fail - empty value", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr(""),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Attribute 'domain' of <cloud> value '' is invalid")
+	})
+	t.Run("test <cloud port=\"...\"> - fail - nil", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              nil,
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Attribute 'port' of <cloud> is required")
+	})
+	t.Run("test <cloud port=\"...\"> - fail - invalid value", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("-1"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidValue)
+		assert.ErrorContains(t, errs[0], "Attribute 'port' of <cloud> value '-1' is invalid")
+	})
+	t.Run("test <cloud path=\"...\"> - fail - nil", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              nil,
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Attribute 'path' of <cloud> is required")
+	})
+	t.Run("test <cloud path=\"...\"> - fail - empty value", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr(""),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Attribute 'path' of <cloud> value '' is invalid")
+	})
+	t.Run("test <cloud registerProcedure=\"...\"> - fail - nil", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: nil,
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Attribute 'registerProcedure' of <cloud> is required")
+	})
+	t.Run("test <cloud registerProcedure=\"...\"> - fail - empty value", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr(""),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrEmptyValue)
+		assert.ErrorContains(t, errs[0], "Attribute 'registerProcedure' of <cloud> value '' is invalid")
+	})
+	t.Run("test <cloud protocol=\"...\"> - fail - nil", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          nil,
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidElement)
+		assert.ErrorContains(t, errs[0], "Attribute 'protocol' of <cloud> is required")
+	})
+	t.Run("test <cloud port=\"...\"> - fail - invalid value", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("bad value"),
+		}
+		ret, errs := r.IsValid()
+		assert.False(t, ret)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorIs(t, errs[0], ErrInvalidValue)
+		assert.ErrorContains(t, errs[0], "Attribute 'protocol' of <cloud> value 'bad value' is invalid")
+	})
+	t.Run("test <cloud> - unmarshal", func(t *testing.T) {
+		var r Cloud
+		s := []byte(`<cloud domain="rpc.example.com" port="1337" path="/path" registerProcedure="procedure" protocol="xml-rpc" />`)
+		err := xml.Unmarshal(s, &r)
+		assert.Equal(t, "", string(r.CharData))
+		assert.Equal(t, "rpc.example.com", *r.Domain)
+		assert.Equal(t, "1337", *r.Port)
+		assert.Equal(t, "/path", *r.Path)
+		assert.Equal(t, "procedure", *r.RegisterProcedure)
+		assert.Equal(t, "xml-rpc", *r.Protocol)
+		assert.Nil(t, err)
+	})
+	t.Run("test <cloud> - marshal", func(t *testing.T) {
+		var r Cloud = Cloud{
+			XMLName:           xml.Name{Space: "", Local: "cloud"},
+			Domain:            Ptr("rpc.example.com"),
+			Port:              Ptr("1337"),
+			Path:              Ptr("/path"),
+			RegisterProcedure: Ptr("procedure"),
+			Protocol:          Ptr("xml-rpc"),
+		}
+		// NOTE: In XML and XHTML, a self-closing tag is a shorthand notation for
+		// an opening and closing tag in one. It's used to communicate lack of
+		// content in between the opening and closing tags. So, rather than typing
+		// <cloud></cloud> (with no space at all in between), you'd be able write
+		// <cloud/>.
+		exp := []byte(`<cloud domain="rpc.example.com" port="1337" path="/path" registerProcedure="procedure" protocol="xml-rpc"></cloud>`)
+		s, err := xml.Marshal(r)
+		assert.Equal(t, exp, s)
+		assert.Nil(t, err)
+		ret, errs := Validate(r)
+		assert.True(t, ret)
+		assert.Empty(t, errs)
+	})
+}
+
 func TestTTL(t *testing.T) {
 	t.Run("test <ttl> - ok", func(t *testing.T) {
 		var r TTL = TTL{
@@ -1146,57 +1362,98 @@ func TestComments(t *testing.T) {
 }
 
 func TestAuthor(t *testing.T) {
-	t.Run("test <author> - ok", func(t *testing.T) {
-		var r Author = Author{
-			XMLName:  xml.Name{Space: "", Local: "author"},
-			CharData: []byte("first.last@example.com"),
-		}
-		ret, errs := r.IsValid()
-		assert.True(t, ret)
-		assert.Empty(t, errs)
-	})
-	t.Run("test <author> - fail - empty", func(t *testing.T) {
-		var r Author = Author{
-			XMLName:  xml.Name{Space: "", Local: "author"},
-			CharData: []byte(""),
-		}
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 2, len(errs))
-		assert.ErrorIs(t, errs[0], ErrEmptyValue)
-		assert.ErrorContains(t, errs[0], "Element <author> value '' is invalid")
-		assert.ErrorIs(t, errs[1], ErrInvalidMailAddress)
-		assert.ErrorContains(t, errs[1], "Element <author> value '' is invalid")
-	})
-	t.Run("test <author> - fail - invalid mail address", func(t *testing.T) {
-		var r Author = Author{
-			XMLName:  xml.Name{Space: "", Local: "author"},
-			CharData: []byte("bad mail address"),
-		}
-		ret, errs := r.IsValid()
-		assert.False(t, ret)
-		assert.Equal(t, 1, len(errs))
-		assert.ErrorIs(t, errs[0], ErrInvalidMailAddress)
-		assert.ErrorContains(t, errs[0], "Element <author> value 'bad mail address' is invalid")
-	})
-	t.Run("test <author> - unmarshal", func(t *testing.T) {
-		var r Author
-		s := []byte(`<author>first.last@example.com</author>`)
-		err := xml.Unmarshal(s, &r)
-		assert.Equal(t, "first.last@example.com", string(r.CharData))
+	cases := []struct {
+		name              string
+		charData          string
+		wantIsValid       bool
+		wantErrorIs       []error
+		wantErrorContains []string
+	}{
+		{
+			name:              "test <author> - ok",
+			charData:          "first.last@example.com",
+			wantIsValid:       true,
+			wantErrorIs:       []error{},
+			wantErrorContains: []string{},
+		},
+		{
+			name:        "test <author> - fail - empty",
+			charData:    "",
+			wantIsValid: false,
+			wantErrorIs: []error{ErrEmptyValue, ErrInvalidMailAddress},
+			wantErrorContains: []string{
+				"Element <author> value '' is invalid: Element must not have empty value",
+				"Element <author> value '' is invalid: Element must contain a valid mail address (RFC5322): mail: no address",
+			},
+		},
+		{
+			name:        "test <author> - fail - invalid mail address",
+			charData:    "bad mail address",
+			wantIsValid: false,
+			wantErrorIs: []error{ErrInvalidMailAddress},
+			wantErrorContains: []string{
+				"Element <author> value 'bad mail address' is invalid: Element must contain a valid mail address (RFC5322): mail: no angle-addr",
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var r Author = Author{
+				XMLName:  xml.Name{Space: "", Local: "author"},
+				CharData: []byte(tc.charData),
+			}
+			ret, errs := r.IsValid()
+			assert.Equal(t, tc.wantIsValid, ret)
+			for i, err := range errs {
+				assert.ErrorIs(t, err, tc.wantErrorIs[i])
+				assert.ErrorContains(t, err, tc.wantErrorContains[i])
+			}
+		})
+	}
+}
+
+type Testable interface {
+	Test(t *testing.T)
+}
+
+type TestCase[T RSSElement] struct {
+	name string
+	data []byte
+	want any
+	r    T
+}
+
+func (tc TestCase[T]) Test(t *testing.T) {
+	t.Run(tc.name, func(t *testing.T) {
+		r := tc.r
+		// test unmarshaling
+		err := xml.Unmarshal(tc.data, &r)
+		assert.Equal(t, tc.want, r)
 		assert.Nil(t, err)
-	})
-	t.Run("test <author> - marshal", func(t *testing.T) {
-		var r Author = Author{
-			XMLName:  xml.Name{Space: "", Local: "author"},
-			CharData: []byte("first.last@example.com"),
-		}
-		exp := []byte(`<author>first.last@example.com</author>`)
-		s, err := xml.Marshal(r)
-		assert.Equal(t, exp, s)
-		assert.Nil(t, err)
+		// test validation
 		ret, errs := Validate(r)
 		assert.True(t, ret)
 		assert.Empty(t, errs)
+		// test marshaling
+		s, err := xml.Marshal(r)
+		assert.Equal(t, tc.data, s)
+		assert.Nil(t, err)
 	})
+}
+
+func TestParse(t *testing.T) {
+	cases := []Testable{
+		TestCase[Author]{
+			name: "test <author> - parse",
+			data: []byte(`<author>first.last@example.com</author>`),
+			want: Author{
+				XMLName:  xml.Name{Space: "", Local: "author"},
+				CharData: []byte("first.last@example.com"),
+			},
+			r: Author{},
+		},
+	}
+	for _, tc := range cases {
+		tc.Test(t)
+	}
 }

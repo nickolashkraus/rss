@@ -140,27 +140,27 @@ func (r Version) IsValid() bool {
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#requiredChannelElements
 type Channel struct {
-	XMLName        xml.Name       `xml:"channel"`        // required
-	Title          Title          `xml:"title"`          // required
-	Link           Link           `xml:"link"`           // required
-	Description    Description    `xml:"description"`    // required
-	Language       Language       `xml:"language"`       // optional
-	Copyright      Copyright      `xml:"copyright"`      // optional
-	ManagingEditor ManagingEditor `xml:"managingEditor"` // optional
-	WebMaster      WebMaster      `xml:"webMaster"`      // optional
-	PubDate        PubDate        `xml:"pubDate"`        // optional
-	LastBuildDate  LastBuildDate  `xml:"lastBuildDate"`  // optional
-	Category       Category       `xml:"category"`       // optional
-	Generator      Generator      `xml:"generator"`      // optional
-	Docs           Docs           `xml:"docs"`           // optional
-	Cloud          Cloud          `xml:"cloud"`          // optional
-	TTL            TTL            `xml:"ttl"`            // optional
-	Image          Image          `xml:"image"`          // optional
-	Rating         Rating         `xml:"rating"`         // optional
-	TextInput      TextInput      `xml:"textInput"`      // optional
-	SkipHours      SkipHours      `xml:"skipHours"`      // optional
-	SkipDays       SkipDays       `xml:"skipDays"`       // optional
-	Item           []*Item        `xml:"item"`           // optional
+	XMLName        xml.Name       `xml:"channel"`                  // required
+	Title          Title          `xml:"title"`                    // required
+	Link           Link           `xml:"link"`                     // required
+	Description    Description    `xml:"description"`              // required
+	Language       Language       `xml:"language,omitempty"`       // optional
+	Copyright      Copyright      `xml:"copyright,omitempty"`      // optional
+	ManagingEditor ManagingEditor `xml:"managingEditor,omitempty"` // optional
+	WebMaster      WebMaster      `xml:"webMaster,omitempty"`      // optional
+	PubDate        PubDate        `xml:"pubDate,omitempty"`        // optional
+	LastBuildDate  LastBuildDate  `xml:"lastBuildDate,omitempty"`  // optional
+	Category       Category       `xml:"category,omitempty"`       // optional
+	Generator      Generator      `xml:"generator,omitempty"`      // optional
+	Docs           Docs           `xml:"docs,omitempty"`           // optional
+	Cloud          Cloud          `xml:"cloud,omitempty"`          // optional
+	TTL            TTL            `xml:"ttl,omitempty"`            // optional
+	Image          Image          `xml:"image,omitempty"`          // optional
+	Rating         Rating         `xml:"rating,omitempty"`         // optional
+	TextInput      TextInput      `xml:"textInput,omitempty"`      // optional
+	SkipHours      SkipHours      `xml:"skipHours,omitempty"`      // optional
+	SkipDays       SkipDays       `xml:"skipDays,omitempty"`       // optional
+	Item           []*Item        `xml:"item,omitempty"`           // optional
 }
 
 // Whether <channel> is valid.
@@ -449,23 +449,107 @@ type Docs string
 // Whether <docs> is valid.
 func (r Docs) IsValid() bool { return true }
 
-// TODO: Convert struct fields to types.
 // <cloud> is an optional sub-element of <channel>.
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
 type Cloud struct {
-	XMLName           xml.Name `xml:"cloud"`                  // required
-	Domain            Domain   `xml:"domain,attr"`            // required
-	Port              string   `xml:"port,attr"`              // required
-	Path              string   `xml:"path,attr"`              // required
-	RegisterProcedure string   `xml:"registerProcedure,attr"` // required
-	Protocol          string   `xml:"protocol,attr"`          // required
+	XMLName           xml.Name          `xml:"cloud"`                  // required
+	CharData          []byte            `xml:",chardata"`              // prohibited
+	Domain            Domain            `xml:"domain,attr"`            // required
+	Port              Port              `xml:"port,attr"`              // required
+	Path              Path              `xml:"path,attr"`              // required
+	RegisterProcedure RegisterProcedure `xml:"registerProcedure,attr"` // required
+	Protocol          Protocol          `xml:"protocol,attr"`          // required
 }
 
-// Whether <cloud> is valid.
+// Returns whether <cloud> is valid and a slice containing any errors.
+func (r Cloud) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Element <%s> is invalid", r.XMLName.Local)
+	if ok, err := IsEmpty(string(r.CharData)); !ok {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
+	// <cloud> contains four required attributes: domain, port,
+	// registerProcedure, protocol
+	if r.Domain == nil {
+		msg := fmt.Sprintf("Attribute 'domain' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'domain' of <%s> value '%s' is invalid", r.XMLName.Local, *r.Domain)
+		if ok, err := IsNotEmpty(*r.Domain); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
+	}
+	if r.Port == nil {
+		msg := fmt.Sprintf("Attribute 'port' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'port' of <%s> value '%s' is invalid", r.XMLName.Local, *r.Port)
+		// 'port' must be a positive integer.
+		if i, err := strconv.ParseUint(*r.Port, 10, 0); err != nil || (i < 1 && i > 65535) {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w: must be a valid port (1-65535)", msg, ErrInvalidValue))
+		}
+	}
+	if r.Path == nil {
+		msg := fmt.Sprintf("Attribute 'path' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'path' of <%s> value '%s' is invalid", r.XMLName.Local, *r.Path)
+		if ok, err := IsNotEmpty(*r.Path); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
+	}
+	if r.RegisterProcedure == nil {
+		msg := fmt.Sprintf("Attribute 'registerProcedure' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'registerProcedure' of <%s> value '%s' is invalid", r.XMLName.Local, *r.RegisterProcedure)
+		if ok, err := IsNotEmpty(*r.RegisterProcedure); !ok {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		}
+	}
+	if r.Protocol == nil {
+		msg := fmt.Sprintf("Attribute 'protocol' of <%s> is required", r.XMLName.Local)
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w", msg, ErrInvalidElement))
+	} else {
+		msg := fmt.Sprintf("Attribute 'protocol' of <%s> value '%s' is invalid", r.XMLName.Local, *r.Protocol)
+		if *r.Protocol != "xml-rpc" && *r.Protocol != "soap" && *r.Protocol != "http-post" {
+			isValid = false
+			errs = append(errs, fmt.Errorf("%s: %w: must be one of \"xml-rpc\", \"soap\", or \"http-post\"", msg, ErrInvalidValue))
+		}
+	}
+	return isValid, errs
+}
+
+// 'port' is required attribute of <cloud>.
 //
-// TODO: https://www.rssboard.org/rsscloud-interface
-func (r Cloud) IsValid() bool { return true }
+// See: https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
+type Port *string
+
+// 'path' is required attribute of <cloud>.
+//
+// See: https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
+type Path *string
+
+// 'registerProcedure' is required attribute of <cloud>.
+//
+// See: https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
+type RegisterProcedure *string
+
+// 'protocol' is required attribute of <cloud>.
+//
+// See: https://validator.w3.org/feed/docs/rss2.html#ltcloudgtSubelementOfLtchannelgt
+type Protocol *string
 
 // <ttl> is an optional sub-element of <channel>.
 //
@@ -497,13 +581,13 @@ func (r TTL) IsValid() (bool, []error) {
 //
 // TODO: Set default values for width and height.
 type Image struct {
-	XMLName     xml.Name    `xml:"image"`       // required
-	URL         URL         `xml:"url"`         // required
-	Title       Title       `xml:"title"`       // required
-	Link        Link        `xml:"link"`        // required
-	Width       Width       `xml:"width"`       // optional
-	Height      Height      `xml:"height"`      // optional
-	Description Description `xml:"description"` // optional
+	XMLName     xml.Name    `xml:"image"`                 // required
+	URL         URL         `xml:"url"`                   // required
+	Title       Title       `xml:"title"`                 // required
+	Link        Link        `xml:"link"`                  // required
+	Width       Width       `xml:"width,omitempty"`       // optional
+	Height      Height      `xml:"height,omitempty"`      // optional
+	Description Description `xml:"description,omitempty"` // optional
 }
 
 // Whether <image> is valid.
@@ -911,6 +995,10 @@ func (r Comments) IsValid() (bool, []error) {
 }
 
 // <author> is an optional sub-element of <item>.
+//
+// Example:
+//
+//	<author>first.last@example.com</author>
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltauthorgtSubelementOfLtitemgt
 type Author struct {
