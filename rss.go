@@ -932,11 +932,15 @@ type Type *string
 
 // <guid> is an optional sub-element of <item>.
 //
+// Example:
+//
+//	<guid isPermaLink="true">https://example.com/1337</guid>
+//
 // See: https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
 type GUID struct {
-	XMLName     xml.Name    `xml:"guid"`                       // required
-	CharData    []byte      `xml:",chardata"`                  // required
-	IsPermaLink IsPermaLink `xml:"isPermaLink,attr,omitempty"` // optional
+	XMLName     xml.Name     `xml:"guid"`                       // required
+	CharData    []byte       `xml:",chardata"`                  // required
+	IsPermaLink *IsPermaLink `xml:"isPermaLink,attr,omitempty"` // optional
 }
 
 // Returns whether <guid> is valid and a slice containing any errors.
@@ -947,31 +951,45 @@ func (r GUID) IsValid() (bool, []error) {
 		isValid = false
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
-	// 'isPermaLink' attribute must be "true" or "false"
-	if r.IsPermaLink != nil {
-		msg := fmt.Sprintf("Attribute 'isPermaLink' of <%s> value '%s' is invalid", r.XMLName.Local, *r.IsPermaLink)
-		if *r.IsPermaLink != "true" && *r.IsPermaLink != "false" {
-			isValid = false
-			errs = append(errs, fmt.Errorf("%s: %w: must be \"true\" or \"false\"", msg, ErrInvalidValue))
-		}
-	}
-	// If the guid element has an attribute named isPermaLink with a value of
-	// true, the reader may assume that it is a permalink to the item.
-	if r.IsPermaLink != nil && *r.IsPermaLink == "true" {
+	// If the <guid> element has an attribute named 'isPermaLink' with a value of
+	// "true", the reader may assume that it is a permalink to the item.
+	// 'isPermaLink' is optional. Its default value is true.
+	if r.IsPermaLink == nil || *r.IsPermaLink == "true" {
 		if ok, err := IsValidURI(string(r.CharData)); !ok {
 			isValid = false
 			errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 		}
+	}
+	if ok, e := Validate(r); !ok {
+		isValid = false
+		errs = append(errs, e...)
 	}
 	return isValid, errs
 }
 
 // 'isPermaLink' is an optional attribute of <guid>.
 //
+// NOTE: Its default value is true.
+//
 // See: https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
-type IsPermaLink *string
+type IsPermaLink string
+
+// Returns whether 'isPermaLink' is valid and a slice containing any errors.
+func (r IsPermaLink) IsValid() (bool, []error) {
+	isValid, errs := true, []error{}
+	msg := fmt.Sprintf("Attribute 'isPermaLink' of <guid> value '%s' is invalid", r)
+	if r != "true" && r != "false" {
+		isValid = false
+		errs = append(errs, fmt.Errorf("%s: %w: must be \"true\" or \"false\"", msg, ErrInvalidValue))
+	}
+	return isValid, errs
+}
 
 // <comments> is an optional sub-element of <item>.
+//
+// Example:
+//
+//	<comments>https://example.com/comments</comments>`
 //
 // See: https://validator.w3.org/feed/docs/rss2.html#ltcommentsgtSubelementOfLtitemgt
 type Comments struct {
